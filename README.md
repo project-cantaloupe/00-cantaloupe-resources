@@ -25,7 +25,10 @@ Cantaloupe 프로젝트의 공통 문서와 설계 자료를 관리하는 저장
 ```text
 blueprint/
 └── 프로젝트의 구조와 원칙을 설명하는 설계 문서
+resource-naming-convention.md
+└── 클라우드 및 K8s 자원 명명 규칙 (Resource Naming Convention)
 ```
+
 
 문서가 늘어나면 주제별 최상위 디렉터리를 추가합니다. 예를 들어 `architecture/`, `operations/`, `security/`, `runbooks/`를 사용할 수 있습니다.
 
