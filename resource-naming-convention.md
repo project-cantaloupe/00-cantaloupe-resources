@@ -1,71 +1,85 @@
 # Cantaloupe Resource Naming Convention
 
-Cantaloupe 프로젝트의 **K8s 단일 클러스터 및 멀티 클라우드(AWS/GCP/On-Prem) 인프라 자원 명명 규칙** 가이드입니다.
+Cantaloupe 단일 Kubernetes 클러스터와 AWS/GCP/On-Prem 인프라 자원의
+명명·태그 기준이다.
 
 ---
 
-## 1. 핵심 원칙 (3초 요약)
+## 1. 핵심 원칙
 
-- **소문자 kebab-case 기본**: 모든 자원명은 소문자와 하이픈(`-`)을 사용합니다. (`_`는 BigQuery 등 필수 요구 환경에서만 허용)
-- **클러스터는 단 1개**: K8s 내부 자원(Namespace, Workload)에는 `cntlp`나 `aws/gcp/onp` 접두사를 붙이지 않습니다.
-- **플랫폼 구분**: 클라우드 네이티브 자원 및 노드(노드풀)에만 `aws`, `gcp`, `onp` 표기를 유지합니다.
-- **불변성 & 식별성**: 자원 이름은 불변이며, 환경/소유자/생명주기는 자원 이름이 아닌 **태그/라벨**로 식별합니다.
+- 이름은 소문자 kebab-case를 사용한다. BigQuery처럼 제약이 있는 경우만
+  언더스코어를 허용한다.
+- Kubernetes Namespace와 Workload 이름에는 `cntlp`나 `aws/gcp/onp` 접두사를
+  붙이지 않는다.
+- 실행 위치는 이름이 아니라 `platform` 태그·라벨로 구분한다.
+- 기존 자원을 규칙 적용만을 위해 일괄 개명하지 않는다.
 
 ---
 
-## 2. 토큰 표준 사전
+## 2. 표준 토큰
 
-| 토큰 | 표준값 | 비고 |
+| 토큰 | 값 | 용도 |
 | --- | --- | --- |
-| `org` | `cntlp` | 모든 클라우드 외곽 자원 접두사 (길이 제한 대비 축약형 통일) |
-| `platform` | `aws`, `gcp`, `onp` | 자원의 물리적 실제 위치 |
-| `component` | `api`, `transcode`, `sanitizer`, `queue`, `quarantine`, `metrics`, `finops`, `cicd`, `registry` | 기능 및 워크로드 영역 |
+| `org` | `cntlp` | 클라우드 자원 조직 |
+| `platform` | `aws`, `gcp`, `onp` | 실제 실행 위치 |
+| `role` | `control-plane`, `service`, `devops`, `monitoring`, `messaging`, `logging` | Node 역할 |
+| `component` | `api`, `transcode`, `metrics`, `registry`, `network`, `storage` 등 | Node가 아닌 자원의 기능 |
 
 ---
 
-## 3. 자원 유형별 패턴표
+## 3. 자원 이름
 
-| 구분 | 자원 | 패턴 | 예시 |
-| --- | --- | --- | --- |
-| **클라우드 자원**<br>(물리 종속) | S3 / GCS 버킷 | `cntlp-<platform>-<component>` | `cntlp-aws-quarantine`, `cntlp-gcp-metrics` |
-| | IAM Role / SA | `cntlp-<platform>-<component>[-qualifier]` | `cntlp-aws-transcode-irsa`, `cntlp-gcp-metrics` |
-| | Control Plane LB | `cntlp-aws-cp-lb` | 컨트롤플레인 전용 고정 패턴 |
-| | BQ 데이터셋 | `cntlp_<component>` | 언더스코어 전용 (`cntlp_finops`) |
-| **노드 자원**<br>(호스트/그룹) | 노드풀 | `<platform>-<qualifier>` | `aws-fast`, `aws-spot`, `gcp-finops`, `onp-cicd` |
-| | 노드 호스트명 | `cntlp-<platform>-wk-<nn>` | `cntlp-aws-wk-01`, `cntlp-onp-wk-01` |
-| **K8s 내부**<br>(플랫폼 무관) | Namespace | `<component>` | `audio`, `finops`, `cicd` |
-| | Workload / SVC | `<component>[-<qualifier>]` | `api`, `transcode-fast`, `sanitizer` |
+| 구분 | 패턴 | 예시 |
+| --- | --- | --- |
+| 클라우드 자원 | `cntlp-<platform>-<component>[-qualifier]` | `cntlp-gcp-metrics-disk` |
+| Node | `cntlp-<platform>-<cp\|wk>-<nn>` | `cntlp-onp-wk-01` |
+| Namespace | 확정 Namespace 이름 | `apps`, `monitoring`, `devops` |
+| Workload·Service | `<app>[-qualifier]` | `audio-api`, `transcode-fast` |
 
-> 💡 **노드 라벨 스케줄링**: 특정 플랫폼 노드에서만 돌아야 하는 워크로드는 이름이 아니라 Pod의 `nodeSelector: platform=<aws|gcp|onp>` 라벨로 제어합니다.
+인프라 디렉터리명도 `aws`, `gcp`, `onp`로 통일한다.
 
 ---
 
-## 4. 필수 태그 & 라벨 (비용 / 운영 가시성)
+## 4. 클라우드 자원 태그
+
+AWS·GCP에서 지원하는 자원에는 다음 공통 태그를 적용한다.
 
 ```yaml
-# 클라우드 자원 태그 & K8s 라벨 공통
 org: cntlp
-owner: team-audio         # 이메일(@) 사용 금지 (GCP 제한)
-cost-center: cc-1042
-managed-by: terraform     # terraform / argocd / manual
-lifecycle: permanent      # temporary인 경우 expires-on 태그 함께 표기
-platform: aws             # 노드 라벨 필수 (aws | gcp | onp)
+owner: team-platform
+managed-by: terraform
+lifecycle: permanent
+platform: aws
 ```
 
-> ⚠️ **주의**: Prometheus 카디널리티 폭증 방지를 위해 `user-id`, `track-id` 등 고가변성 ID는 라벨/태그에 절대 추가하지 않습니다.
+Node에는 `role`을 추가한다.
+
+```yaml
+role: service
+```
+
+디스크·DB·버킷처럼 Node가 아닌 자원에는 필요할 때 `component`를 추가한다.
+
+```yaml
+component: metrics
+```
+
+- `owner`: 자원 변경·삭제를 판단할 책임 팀
+- `managed-by`: `terraform`, `argocd`, `manual` 등 관리 주체
+- `lifecycle`: `permanent` 또는 `temporary`
+- `temporary` 자원에는 `expires-on`을 함께 기록한다.
+- `data-class`는 보안 분류가 필요한 자원에만 사용한다.
+- 실제 회계 비용센터가 없으므로 `cost-center`는 사용하지 않는다.
+
+Proxmox는 `key=value` 태그를 지원하지 않으므로 운영 자동화에 필요한
+`platform-onp`, `role-devops`만 사용한다.
 
 ---
 
-## 5. 금지 사항 (Don'ts)
+## 5. 금지 사항
 
-- ❌ `cntlp-aws-transcode-fast` : K8s 내부 워크로드/네임스페이스에 `cntlp`나 `aws` 접두사 사용 금지 (노드 이동 시 불일치 발생)
-- ❌ `Cantaloupe-API` : 대문자 사용 금지
-- ❌ `cntlp-jihoon-test` : 개인명 금지 (`lifecycle: temporary` 태그 활용)
-- ❌ `transcode-v2`, `audio-20260729` : 버저닝/날짜 접미사 금지 (자원 이름은 변경 불가한 불변값)
-
----
-
-## 6. 적용 방식
-
-- **신규 자원**: 본 규칙을 엄격히 준수하여 생성
-- **기존 자원**: 일괄 개명 작업을 진행하지 않으며, 필수 태그/라벨을 우선적으로 적용하여 비용 및 관리 가시성을 확보
+- `cntlp-aws-audio-api`: Kubernetes Workload에 조직·플랫폼 접두사 사용 금지
+- `Cantaloupe-API`: 대문자 사용 금지
+- `cntlp-jihoon-test`: 개인 이름 사용 금지
+- `audio-20260729`: 날짜를 불변 자원명에 사용 금지
+- 사용자 ID·요청 ID 등 고가변성 값을 태그·라벨에 사용 금지
