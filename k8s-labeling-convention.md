@@ -1,112 +1,148 @@
 # Kubernetes Label & Selector 표준 규칙
 
-Cantaloupe 프로젝트의 **Kubernetes Node, Namespace, Pod, Service 라벨링 및 셀렉터 작성 가이드**입니다.
+Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라벨과
+스케줄링 기준이다.
 
 ---
 
-## 1. Node 라벨 규칙 (초기 노드 Join 시)
+## 1. Namespace
 
-노드가 Kubernetes 클러스터에 Join된 직후 노드에 필수 라벨 2개를 부여합니다.
+| Namespace | 구성요소 |
+| --- | --- |
+| `apps` | 사용자 서비스 |
+| `devops` | Argo CD, Jenkins, Harbor |
+| `monitoring` | Prometheus, Grafana, Alertmanager, OpenCost |
+| `messaging` | Kafka, RabbitMQ |
+| `logging` | OpenSearch, Fluent Bit |
+| `finops` | FinOps 전용 Job/API |
 
-- `platform`: `aws`, `gcp`, `onp` (사설/온프렘)
-- `role`: 역할에 맞게 부여 (`control-plane`, `service`, `devops`, `messaging`, `monitoring`, `logging` 등)
+팀 워크로드는 `default` Namespace에 배포하지 않는다.
+`kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
+Namespace이므로 유지한다.
 
-### 적용 예시
+---
+
+## 2. Node 라벨
+
+노드가 클러스터에 Join되면 다음 두 라벨을 반드시 함께 부여한다.
+
+- `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
+- `role`: Node 역할 (`control-plane`, `service`, `devops`, `messaging`,
+  `monitoring`, `logging`)
 
 ```bash
-# AWS 노드
-kubectl label node cantaloupe-aws-cp-01 platform=aws role=control-plane
-kubectl label node cantaloupe-aws-wk-01 platform=aws role=service
-kubectl label node cantaloupe-aws-wk-02 platform=aws role=service
-
-# On-Prem (사설) 노드
-kubectl label node cantaloupe-onp-wk-01 platform=onp role=devops
-kubectl label node cantaloupe-onp-wk-02 platform=onp role=service
-
-# GCP 노드
-kubectl label node cantaloupe-gcp-wk-01 platform=gcp role=messaging
-kubectl label node cantaloupe-gcp-wk-02 platform=gcp role=monitoring
-kubectl label node cantaloupe-gcp-wk-03 platform=gcp role=logging
+kubectl label node cntlp-aws-cp-01 platform=aws role=control-plane
+kubectl label node cntlp-aws-wk-01 platform=aws role=service
+kubectl label node cntlp-gcp-wk-01 platform=gcp role=monitoring
+kubectl label node cntlp-gcp-wk-02 platform=gcp role=logging
+kubectl label node cntlp-onp-wk-01 platform=onp role=devops
 ```
 
----
-
-## 2. Namespace 규칙
-
-비용 분리 및 기능 영역 격리에 따라 세분화하여 네임스페이스를 관리합니다.
-
-| Namespace | 구성 요소 | 비고 |
-| --- | --- | --- |
-| `apps` | 사용자 앱 서비스 | 도메인별 비용 분리가 필요한 경우 `app-user`, `app-order`, `app-payment` 등으로 세분화 가능 |
-| `devops` | Argo CD, Harbor, CI/CD 러너 |  |
-| `monitoring` | Prometheus, Grafana, OpenCost, Kepler |  |
-| `messaging` | Kafka, RabbitMQ |  |
-| `logging` | Logstash, OpenSearch, Fluent Bit |  |
-| `finops` | 비용 분석 및 예산 관리 |  |
+`area`는 Node 라벨이나 스케줄링 조건으로 사용하지 않는다.
 
 ---
 
-## 3. Pod & Service 라벨 작성 규칙
+## 3. Pod 라벨
 
-### 3-1. Pod 라벨 (Pod Template)
+### 일반 워크로드
 
-Deployment / StatefulSet의 **Pod template (`spec.template.metadata.labels`)**에 작성합니다.
+Deployment, StatefulSet, Job, CronJob의 Pod template에는 다음 라벨을
+작성한다.
 
-- `app`: 애플리케이션 이름 (`order-api`, `prometheus`, `kafka`, `argocd` 등)
-- `area`: 기능 영역 (`apps`, `devops`, `monitoring`, `logging`, `messaging`, `finops`)
-- `platform`: 실행 노드의 물리적 위치 (`aws`, `gcp`, `onp`)
+- `app`: 서비스 이름. 소문자 kebab-case
+- `area`: 업무 영역 (`apps`, `devops`, `monitoring`, `messaging`, `logging`,
+  `finops`)
+- `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
 
-#### Deployment 작성 예시
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: order-api
+  name: audio-api
   namespace: apps
 spec:
-  replicas: 2
   selector:
     matchLabels:
-      app: order-api
+      app: audio-api
   template:
     metadata:
       labels:
-        app: order-api
+        app: audio-api
         area: apps
         platform: aws
     spec:
-      containers:
-        - name: order-api
-          image: cntlp-registry.internal/apps/order-api:1.0
-          resources:
-            requests:
-              cpu: 500m
-              memory: 512Mi
-            limits:
-              cpu: "1"
-              memory: 1Gi
+      nodeSelector:
+        platform: aws
+        role: service
 ```
 
-### 3-2. Service 라벨 & Selector
+### 다중 플랫폼 DaemonSet
 
-Service의 `spec.selector`에는 **`app` 라벨 하나만 작성**합니다.
+node-exporter와 Fluent Bit처럼 여러 플랫폼의 Node에 배치되는 DaemonSet은
+`app`, `area`만 작성한다. 하나의 Pod template에 고정된 `platform` 값을 쓰면
+다른 플랫폼에서 실행되는 Pod의 위치가 잘못 표시되기 때문이다.
 
-> ⚠️ `area`, `platform` 라벨을 Service selector에 포함하지 않습니다. (노드 스케줄링 이동 시 엔드포인트 연결 유실 방지)
-
-#### Service 작성 예시
 ```yaml
-apiVersion: v1
-kind: Service
 metadata:
-  name: order-api
-  namespace: apps
   labels:
-    app: order-api
-spec:
-  type: ClusterIP
-  selector:
-    app: order-api
-  ports:
-    - port: 80
-      targetPort: 8080
+    app: node-exporter
+    area: monitoring
 ```
+
+실제 위치는 Pod가 실행되는 Node의 `platform` 라벨로 판단한다. 특정 플랫폼에만
+배치하는 DaemonSet은 `platform`을 작성할 수 있다.
+
+---
+
+## 4. Node 배치
+
+Node 배치에는 `platform`과 `role`을 함께 사용한다.
+
+```yaml
+nodeSelector:
+  platform: gcp
+  role: monitoring
+```
+
+- 직접 작성한 매니페스트는 플랫폼별 Kustomization에서 공통 주입한다.
+- Helm chart는 해당 chart의 `values.yaml`에서 설정한다.
+- 메시징 워크로드는 실제 배치 위치가 확정된 뒤 selector를 추가한다.
+
+---
+
+## 5. Service selector
+
+직접 작성한 Service의 `spec.selector`에는 `app`만 사용한다.
+
+```yaml
+spec:
+  selector:
+    app: audio-api
+```
+
+`area`와 `platform`은 Node 이동 시 변경될 수 있으므로 Service selector에 넣지
+않는다. Third-party Helm chart가 생성하는 Service selector는 chart의 표준
+라벨을 유지한다.
+
+---
+
+## 6. 작성 원칙
+
+- 라벨 key와 value는 소문자 kebab-case를 사용한다.
+- `platform`은 실행 위치, `role`은 Node 역할, `area`는 업무 영역이다.
+- `area`에 `aws`, `gcp`, `onprem`을 사용하지 않는다.
+- 라벨 값에는 `onprem`, `on-prem` 대신 `onp`를 사용한다.
+- 사용자 ID, 요청 ID, 날짜 등 고가변성 값은 라벨에 넣지 않는다.
+
+---
+
+## 7. FinOps 배포 기준
+
+- 모든 container와 initContainer는 CPU request, Memory request,
+  Memory limit을 선언한다.
+- CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
+- Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
+  `logging`, `finops` Namespace다.
+- Kubernetes 시스템 Namespace와 `kyverno`는 대상에서 제외한다.
+- Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
+- 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
