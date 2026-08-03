@@ -15,10 +15,32 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 | `messaging` | Kafka, RabbitMQ |
 | `logging` | OpenSearch, Fluent Bit |
 | `finops` | FinOps 전용 Job/API |
+| `secops` | Keycloak, External Secrets Operator |
 
 팀 워크로드는 `default` Namespace에 배포하지 않는다.
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
 Namespace이므로 유지한다.
+
+`kyverno`는 별도 Namespace를 유지한다. 차트 기본값이고 7절이 이미 강제
+대상에서 제외하고 있다. Namespace는 `kyverno`지만 Pod의 `area` 라벨은
+`secops`다. **Namespace와 `area`가 항상 1:1인 것은 아니다.**
+
+### 특권이 필요한 워크로드는 Namespace를 따로 준다
+
+Pod Security Admission 등급은 Namespace 단위로만 줄 수 있다. 특권이 필요한
+워크로드를 다른 것과 같은 Namespace에 두면 **그 Namespace 전체가 하드닝을
+잃는다.** node-exporter가 `monitoring`을, Fluent Bit이 `logging`을 이미 그렇게
+만들고 있다.
+
+새로 들이는 것 중 특권이 필요한 것은 전용 Namespace를 준다.
+
+| 워크로드 | 왜 특권이 필요한가 | Namespace |
+| --- | --- | --- |
+| Kepler | RAPL 전력 카운터를 읽는다 | 전용 (`kepler`) |
+| Falco | eBPF 또는 커널 모듈로 시스템콜을 본다 | 전용 (`falco`) |
+
+**Falco를 `secops`에 넣지 않는다.** 넣으면 Keycloak이 하드닝 없는
+Namespace에서 돌게 된다. 신원 서버는 클러스터에서 가치가 가장 높은 표적이다.
 
 ---
 
@@ -51,7 +73,7 @@ Deployment, StatefulSet, Job, CronJob의 Pod template에는 다음 라벨을
 
 - `app`: 서비스 이름. 소문자 kebab-case
 - `area`: 업무 영역 (`apps`, `devops`, `monitoring`, `messaging`, `logging`,
-  `finops`)
+  `finops`, `secops`)
 - `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
 
 ```yaml
@@ -142,7 +164,9 @@ spec:
   Memory limit을 선언한다.
 - CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
 - Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
-  `logging`, `finops` Namespace다.
+  `logging`, `finops`, `secops` Namespace다.
 - Kubernetes 시스템 Namespace와 `kyverno`는 대상에서 제외한다.
+  특권이 필요해 전용 Namespace를 받은 것(`kepler`, `falco`)도 자원 기준은
+  같이 적용하되, Pod 하드닝은 PSA 등급으로 따로 정한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
 - 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
