@@ -65,7 +65,6 @@ Pod Security Admission 등급은 Namespace 단위로만 줄 수 있다. 특권�
 
 | 워크로드 | 왜 특권이 필요한가 | Namespace |
 | --- | --- | --- |
-| Kepler | RAPL 전력 카운터를 읽는다 | 전용 (`kepler`) |
 | Falco | eBPF 또는 커널 모듈로 시스템콜을 본다 | 전용 (`falco`) |
 | CSI Node Agent | 디바이스와 kubelet mount 경로를 사용한다 | `storage-system` |
 
@@ -202,7 +201,7 @@ spec:
 - Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
   `logging`, `finops`, `secops` Namespace다.
 - Kubernetes 기본 시스템 Namespace는 일반 업무 정책 대상에서 제외한다.
-- `storage-system`, `kyverno`, `kepler`, `falco`도 CPU·Memory 자원 기준과
+- `storage-system`, `kyverno`, `falco`도 CPU·Memory 자원 기준과
   비용 수집 대상에는 포함한다. 다만 Third-party Add-on이 지원하는 설정 범위
   안에서 적용하고, Pod 하드닝 예외는 Namespace 전체가 아니라 필요한
   ServiceAccount·이미지·권한 조합으로 제한한다.
