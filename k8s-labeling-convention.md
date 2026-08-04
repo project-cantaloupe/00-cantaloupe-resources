@@ -7,6 +7,8 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 
 ## 1. Namespace
 
+### 업무 Namespace
+
 | Namespace | 구성요소 |
 | --- | --- |
 | `apps` | 사용자 서비스 |
@@ -21,9 +23,36 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
 Namespace이므로 유지한다.
 
-`kyverno`는 별도 Namespace를 유지한다. 차트 기본값이고 7절이 이미 강제
-대상에서 제외하고 있다. Namespace는 `kyverno`지만 Pod의 `area` 라벨은
-`secops`다. **Namespace와 `area`가 항상 1:1인 것은 아니다.**
+### 시스템 Add-on Namespace
+
+클러스터 기능을 제공하는 Add-on은 업무 워크로드와 분리한다.
+
+| Namespace | 구성요소 | `area` | 비용 귀속 |
+| --- | --- | --- | --- |
+| `kyverno` | 정책 엔진 | `secops` | 공통 플랫폼 |
+| `storage-system` | CSI Driver, snapshot-controller 등 스토리지 Add-on | `platform` | 공통 플랫폼 |
+
+`storage-system`에는 PVC를 사용하는 Prometheus, OpenSearch 같은 업무
+워크로드를 넣지 않는다. CSI Controller와 Node Agent처럼 스토리지 기능을
+제공하는 컴포넌트만 둔다. AWS EBS, GCP PD처럼 공급자가 달라도 같은
+Namespace를 사용하고 실제 배치 위치는 Pod와 Node의 `platform` 라벨로
+구분한다.
+
+`storage-system`에는 다음 라벨을 적용한다.
+
+```yaml
+metadata:
+  labels:
+    area: platform
+    cost-allocation: shared
+    app.kubernetes.io/part-of: cantaloupe-platform
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+`kyverno`의 `area`는 보안 기능이므로 `secops`를 사용한다. Namespace 이름과
+`area`가 항상 1:1인 것은 아니다.
 
 ### 특권이 필요한 워크로드는 Namespace를 따로 준다
 
@@ -38,9 +67,14 @@ Pod Security Admission 등급은 Namespace 단위로만 줄 수 있다. 특권�
 | --- | --- | --- |
 | Kepler | RAPL 전력 카운터를 읽는다 | 전용 (`kepler`) |
 | Falco | eBPF 또는 커널 모듈로 시스템콜을 본다 | 전용 (`falco`) |
+| CSI Node Agent | 디바이스와 kubelet mount 경로를 사용한다 | `storage-system` |
 
 **Falco를 `secops`에 넣지 않는다.** 넣으면 Keycloak이 하드닝 없는
 Namespace에서 돌게 된다. 신원 서버는 클러스터에서 가치가 가장 높은 표적이다.
+
+`storage-system`은 CSI Node Agent 때문에 Pod Security Admission의
+`privileged` 등급이 필요할 수 있다. 이 권한을 일반 Pod가 이용하지 못하도록
+허용하는 ServiceAccount와 이미지 출처를 CSI 구성요소로 제한한다.
 
 ---
 
@@ -72,8 +106,8 @@ Deployment, StatefulSet, Job, CronJob의 Pod template에는 다음 라벨을
 작성한다.
 
 - `app`: 서비스 이름. 소문자 kebab-case
-- `area`: 업무 영역 (`apps`, `devops`, `monitoring`, `messaging`, `logging`,
-  `finops`, `secops`)
+- `area`: 업무·플랫폼 영역 (`apps`, `devops`, `monitoring`, `messaging`,
+  `logging`, `finops`, `secops`, `platform`)
 - `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
 
 ```yaml
@@ -151,10 +185,12 @@ spec:
 ## 6. 작성 원칙
 
 - 라벨 key와 value는 소문자 kebab-case를 사용한다.
-- `platform`은 실행 위치, `role`은 Node 역할, `area`는 업무 영역이다.
+- `platform`은 실행 위치, `role`은 Node 역할, `area`는 업무·플랫폼 영역이다.
 - `area`에 `aws`, `gcp`, `onprem`을 사용하지 않는다.
 - 라벨 값에는 `onprem`, `on-prem` 대신 `onp`를 사용한다.
 - 사용자 ID, 요청 ID, 날짜 등 고가변성 값은 라벨에 넣지 않는다.
+- `cost-allocation=shared`는 특정 서비스에 직접 귀속하지 않는 공통 플랫폼
+  컴포넌트에만 사용한다.
 
 ---
 
@@ -165,8 +201,21 @@ spec:
 - CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
 - Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
   `logging`, `finops`, `secops` Namespace다.
-- Kubernetes 시스템 Namespace와 `kyverno`는 대상에서 제외한다.
-  특권이 필요해 전용 Namespace를 받은 것(`kepler`, `falco`)도 자원 기준은
-  같이 적용하되, Pod 하드닝은 PSA 등급으로 따로 정한다.
+- Kubernetes 기본 시스템 Namespace는 일반 업무 정책 대상에서 제외한다.
+- `storage-system`, `kyverno`, `kepler`, `falco`도 CPU·Memory 자원 기준과
+  비용 수집 대상에는 포함한다. 다만 Third-party Add-on이 지원하는 설정 범위
+  안에서 적용하고, Pod 하드닝 예외는 Namespace 전체가 아니라 필요한
+  ServiceAccount·이미지·권한 조합으로 제한한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
 - 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
+
+### 스토리지 비용 귀속
+
+- CSI Controller와 Node Agent의 CPU·Memory 비용은
+  `storage-system`, `cost-allocation=shared`로 공통 플랫폼에 귀속한다.
+- PersistentVolume과 클라우드 디스크 비용은 CSI Pod가 아니라 이를 요청한
+  PVC의 Namespace와 애플리케이션에 귀속한다.
+- StorageClass는 업무별로 복제하지 않는다. 성능·가용성·보존 정책이 실제로
+  다를 때만 별도 Class를 만든다.
+- 동적 프로비저닝은 `WaitForFirstConsumer`를 사용해 Pod가 배치될 플랫폼과
+  Zone이 정해진 뒤 디스크를 생성한다.

@@ -23,6 +23,7 @@ Cantaloupe 단일 Kubernetes 클러스터와 AWS/GCP/On-Prem 인프라 자원의
 | `org` | `cntlp` | 클라우드 자원 조직 |
 | `platform` | `aws`, `gcp`, `onp` | 실제 실행 위치 |
 | `role` | `control-plane`, `service`, `devops`, `monitoring`, `messaging`, `logging` | Node 역할 |
+| `area` | `apps`, `devops`, `monitoring`, `messaging`, `logging`, `finops`, `secops`, `platform` | 업무·플랫폼 영역 |
 | `component` | `api`, `transcode`, `metrics`, `registry`, `network`, `storage` 등 | Node가 아닌 자원의 기능 |
 
 ---
@@ -33,10 +34,14 @@ Cantaloupe 단일 Kubernetes 클러스터와 AWS/GCP/On-Prem 인프라 자원의
 | --- | --- | --- |
 | 클라우드 자원 | `cntlp-<platform>-<component>[-qualifier]` | `cntlp-gcp-metrics-disk` |
 | Node | `cntlp-<platform>-<cp\|wk>-<nn>` | `cntlp-onp-wk-01` |
-| Namespace | 확정 Namespace 이름 | `apps`, `monitoring`, `devops` |
+| Namespace | 확정 Namespace 이름 | `apps`, `monitoring`, `storage-system` |
 | Workload·Service | `<app>[-qualifier]` | `audio-api`, `transcode-fast` |
 
 인프라 디렉터리명도 `aws`, `gcp`, `onp`로 통일한다.
+
+시스템 Add-on Namespace는 기능 중심의 `<component>-system` 이름을 사용한다.
+공급자별 `gcp-*`, `aws-*` Namespace를 만들지 않고 실행 위치는 `platform`
+라벨로 구분한다. 현재 확정된 공통 스토리지 Namespace는 `storage-system`이다.
 
 ---
 
