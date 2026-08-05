@@ -27,6 +27,8 @@ Namespace 이름과 `area` 라벨은 이때 갈린다.
 | `cert-manager` | cert-manager | `secops` |
 | `istio-system` | istiod | `apps` |
 | `istio-ingress` | Istio 인그레스 게이트웨이 | `apps` |
+| `istio-cni` | Istio CNI 플러그인 (ambient) | `apps` |
+| `ztunnel` | Istio ztunnel (ambient) | `apps` |
 
 팀 워크로드는 `default` Namespace에 배포하지 않는다.
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
@@ -48,9 +50,16 @@ Pod Security Admission 등급은 Namespace 단위로만 줄 수 있다. 특권�
 | --- | --- | --- |
 | Kepler | RAPL 전력 카운터를 읽는다 | 전용 (`kepler`) |
 | Falco | eBPF 또는 커널 모듈로 시스템콜을 본다 | 전용 (`falco`) |
+| istio-cni | 노드의 CNI 설정을 고친다 (hostPath) | 전용 (`istio-cni`) |
+| ztunnel | 다른 Pod의 network namespace에 들어간다 | 전용 (`ztunnel`) |
 
 **Falco를 `secops`에 넣지 않는다.** 넣으면 Keycloak이 하드닝 없는
 Namespace에서 돌게 된다. 신원 서버는 클러스터에서 가치가 가장 높은 표적이다.
+
+**istio-cni와 ztunnel을 `istio-system`에 넣지 않는다.** Istio ambient 모드의
+표준 설치는 셋을 한 Namespace에 두지만, 그러면 istiod가 하드닝 없는
+Namespace에서 돌게 된다. **ambient를 고른 이유가 특권을 앱에서 노드 인프라로
+좁히는 것이므로, 좁힌 범위를 Namespace 경계로 고정한다.**
 
 ---
 
@@ -176,7 +185,8 @@ spec:
 - Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
   `logging`, `finops`, `secops` Namespace다.
 - Kubernetes 시스템 Namespace와 1절의 서드파티 Namespace(`kyverno`,
-  `cert-manager`, `istio-system`, `istio-ingress`)는 대상에서 제외한다.
+  `cert-manager`, `istio-system`, `istio-ingress`, `istio-cni`, `ztunnel`)는
+  대상에서 제외한다.
   차트가 정한 자원값을 우리 정책으로 덮으면 업그레이드마다 어긋난다.
 - 특권이 필요해 전용 Namespace를 받은 것(`kepler`, `falco`)도 자원 기준은
   같이 적용하되, Pod 하드닝은 PSA 등급으로 따로 정한다.
