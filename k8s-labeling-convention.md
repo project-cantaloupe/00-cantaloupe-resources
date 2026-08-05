@@ -15,15 +15,25 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 | `messaging` | Kafka, RabbitMQ |
 | `logging` | OpenSearch, Fluent Bit |
 | `finops` | FinOps 전용 Job/API |
-| `secops` | Keycloak, External Secrets Operator, cert-manager |
+| `secops` | Keycloak, External Secrets Operator |
+
+서드파티 차트가 자기 Namespace를 요구하는 경우는 그 기본값을 존중하되,
+`governance/namespaces/`가 만들어 Pod Security Admission 등급을 붙인다.
+Namespace 이름과 `area` 라벨은 이때 갈린다.
+
+| Namespace | 구성요소 | `area` |
+| --- | --- | --- |
+| `kyverno` | Kyverno | `secops` |
+| `cert-manager` | cert-manager | `secops` |
+| `istio-system` | istiod | `apps` |
+| `istio-ingress` | Istio 인그레스 게이트웨이 | `apps` |
 
 팀 워크로드는 `default` Namespace에 배포하지 않는다.
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
 Namespace이므로 유지한다.
 
-`kyverno`는 별도 Namespace를 유지한다. 차트 기본값이고 7절이 이미 강제
-대상에서 제외하고 있다. Namespace는 `kyverno`지만 Pod의 `area` 라벨은
-`secops`다. **Namespace와 `area`가 항상 1:1인 것은 아니다.**
+위 표에서 보듯 **Namespace와 `area`가 항상 1:1인 것은 아니다.** 차트가 정한
+Namespace를 그대로 두더라도 Pod의 `area` 라벨은 업무 영역을 따른다.
 
 ### 특권이 필요한 워크로드는 Namespace를 따로 준다
 
@@ -165,8 +175,10 @@ spec:
 - CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
 - Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
   `logging`, `finops`, `secops` Namespace다.
-- Kubernetes 시스템 Namespace와 `kyverno`는 대상에서 제외한다.
-  특권이 필요해 전용 Namespace를 받은 것(`kepler`, `falco`)도 자원 기준은
+- Kubernetes 시스템 Namespace와 1절의 서드파티 Namespace(`kyverno`,
+  `cert-manager`, `istio-system`, `istio-ingress`)는 대상에서 제외한다.
+  차트가 정한 자원값을 우리 정책으로 덮으면 업그레이드마다 어긋난다.
+- 특권이 필요해 전용 Namespace를 받은 것(`kepler`, `falco`)도 자원 기준은
   같이 적용하되, Pod 하드닝은 PSA 등급으로 따로 정한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
 - 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
