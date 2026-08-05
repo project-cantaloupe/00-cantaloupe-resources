@@ -15,7 +15,7 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 | `messaging` | Kafka, RabbitMQ |
 | `logging` | OpenSearch, Fluent Bit |
 | `finops` | FinOps 전용 Job/API |
-| `secops` | Keycloak, External Secrets Operator |
+| `secops` | Keycloak, External Secrets Operator, cert-manager |
 
 팀 워크로드는 `default` Namespace에 배포하지 않는다.
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
