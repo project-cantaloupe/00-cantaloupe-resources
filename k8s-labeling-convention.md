@@ -24,21 +24,37 @@ Namespace이므로 유지한다.
 
 ## 2. Node 라벨
 
-노드가 클러스터에 Join되면 다음 두 라벨을 반드시 함께 부여한다.
+노드가 클러스터에 Join되면 다음 네 라벨을 반드시 함께 부여한다.
 
 - `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
 - `role`: Node 역할 (`control-plane`, `service`, `devops`, `messaging`,
   `monitoring`, `logging`)
+- `topology.kubernetes.io/region`: 가격과 장애 도메인의 리전
+- `node.kubernetes.io/instance-type`: 공급자 VM 사양 또는 팀 표준 On-prem 사양명
 
 ```bash
-kubectl label node cntlp-aws-cp-01 platform=aws role=control-plane
-kubectl label node cntlp-aws-wk-01 platform=aws role=service
-kubectl label node cntlp-gcp-wk-01 platform=gcp role=monitoring
-kubectl label node cntlp-gcp-wk-02 platform=gcp role=logging
-kubectl label node cntlp-onp-wk-01 platform=onp role=devops
+kubectl label node cntlp-aws-cp-01 platform=aws role=control-plane \
+  topology.kubernetes.io/region=ap-northeast-2 \
+  node.kubernetes.io/instance-type=m7i-flex.large
+kubectl label node cntlp-gcp-wk-01 platform=gcp role=monitoring \
+  topology.kubernetes.io/region=asia-northeast3 \
+  node.kubernetes.io/instance-type=e2-custom-4-8192
+kubectl label node cntlp-onp-wk-01 platform=onp role=devops \
+  topology.kubernetes.io/region=on-premise \
+  node.kubernetes.io/instance-type=custom-8vcpu-16gib
 ```
 
 `area`는 Node 라벨이나 스케줄링 조건으로 사용하지 않는다.
+
+`spec.providerID`는 라벨이 아니다. AWS/GCP VM의 실제 신원을 확인하는 Kubernetes
+Node 필드이며 가격 매칭 키로 사용하지 않는다. AWS는 `aws:///AZ/instance-id`,
+GCP는 `gce://project/zone/instance-name` 형식을 사용한다. On-prem은 외부 Cloud
+Provider 신원이 아니므로 `custom:///node-name` 팀 로컬 형식을 사용하되 AWS/GCP
+provider 일치 경고 대상에서는 제외한다.
+
+OpenCost는 `topology.kubernetes.io/region`과
+`node.kubernetes.io/instance-type`으로 가격을 매칭한다. `platform`과 `role`은
+비용 분류에, `spec.providerID`는 플랫폼과 실제 VM 신원 교차검증에 사용한다.
 
 ---
 
@@ -146,3 +162,17 @@ spec:
 - Kubernetes 시스템 Namespace와 `kyverno`는 대상에서 제외한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
 - 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
+
+### Node 가격 메타데이터 검증
+
+```bash
+kubectl get nodes \
+  -L platform,role,topology.kubernetes.io/region,node.kubernetes.io/instance-type
+
+kubectl get nodes \
+  -o custom-columns='NAME:.metadata.name,PROVIDER_ID:.spec.providerID'
+```
+
+- 기존 `region + instance-type`과 같은 VM 증설은 기존 가격을 자동 적용한다.
+- 새로운 VM 사양은 인프라 변경 PR과 함께 OpenCost 가격 카탈로그를 검토한다.
+- 가격표에 없는 사양은 0원으로 간주하지 않고 FinOps 경고 대상으로 처리한다.
