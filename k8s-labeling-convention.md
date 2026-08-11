@@ -12,7 +12,7 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 | Namespace | 구성요소 |
 | --- | --- |
 | `apps` | 사용자 서비스 |
-| `devops` | Argo CD, Jenkins, Harbor |
+| `devops` | Argo CD, Harbor |
 | `monitoring` | Prometheus, Grafana, Alertmanager, OpenCost |
 | `messaging` | Kafka, RabbitMQ |
 | `logging` | OpenSearch, Fluent Bit |
