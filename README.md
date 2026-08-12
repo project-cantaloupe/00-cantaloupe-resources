@@ -25,6 +25,8 @@ Cantaloupe 프로젝트의 공통 문서와 설계 자료를 관리하는 저장
 ```text
 blueprint/
 └── 프로젝트의 구조와 원칙을 설명하는 설계 문서
+docs/
+└── 현재 구현과 운영 대시보드를 기준으로 검증한 횡단 설계
 resource-naming-convention.md
 └── 클라우드 및 K8s 자원 명명 규칙 (Resource Naming Convention)
 k8s-labeling-convention.md
@@ -34,6 +36,15 @@ k8s-labeling-convention.md
 
 
 문서가 늘어나면 주제별 최상위 디렉터리를 추가합니다. 예를 들어 `architecture/`, `operations/`, `security/`, `runbooks/`를 사용할 수 있습니다.
+
+## 현재 운영 설계
+
+- [FinOps·OpenCost·Metrics·Right-sizing 현행 설계](docs/finops-observability.md)
+
+위 문서는 `02-k8s-manifests`의 현재 매니페스트와 운영 Grafana
+대시보드를 기준으로 합니다. 이미지로 남은 구조도는 설계 의도를
+설명하는 자료이며, 버전·메트릭·실행 주기 같은 운영 사실은 현행
+설계와 구현 저장소를 우선합니다.
 
 ## 문서 작성 원칙
 
