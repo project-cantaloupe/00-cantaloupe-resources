@@ -7,17 +7,21 @@ Cantaloupe 단일 Kubernetes 클러스터의 Node, Namespace, Pod, Service 라�
 
 ## 1. Namespace
 
-### 업무 Namespace
+### 운영 비용 관측 Namespace
 
 | Namespace | 구성요소 |
 | --- | --- |
 | `apps` | 사용자 서비스 |
-| `devops` | Argo CD, Harbor |
+| `devops` | Argo CD |
 | `monitoring` | Prometheus, Grafana, Alertmanager, OpenCost |
-| `messaging` | Kafka, RabbitMQ |
 | `logging` | OpenSearch, Fluent Bit |
-| `finops` | FinOps 전용 Job/API |
-| `secops` | Keycloak, External Secrets Operator |
+| `secops` | Keycloak |
+| `audio-ingress` | Audio Istio Ingress Gateway |
+| `harbor-system` | Harbor Registry |
+
+현재 FinOps collector·recording rule·Pushgateway는 `monitoring`에서 실행한다.
+실제 Workload가 없는 `finops`, `messaging` Namespace는 만들지 않는다. Kafka 등
+새 구성요소가 도입될 때 소유 Application과 함께 Namespace를 추가한다.
 
 팀 워크로드는 `default` Namespace에 배포하지 않는다.
 `kube-system`, `kube-public`, `kube-node-lease`는 Kubernetes 기본
@@ -31,6 +35,13 @@ Namespace이므로 유지한다.
 | --- | --- | --- | --- |
 | `kyverno` | 정책 엔진 | `secops` | 공통 플랫폼 |
 | `storage-system` | CSI Driver, snapshot-controller 등 스토리지 Add-on | `platform` | 공통 플랫폼 |
+| `autoscaling` | VPA Recommender, Metrics Server | `monitoring` | 공통 플랫폼 |
+| `keda` | KEDA Operator, Metrics API | `autoscaling` | 공통 플랫폼 |
+| `cert-manager` | 인증서 및 webhook | `secops` | 공통 플랫폼 |
+| `external-secrets` | External Secrets Operator | `secops` | 공통 플랫폼 |
+| `istio-system` | Istiod | `platform` | 공통 플랫폼 |
+| `istio-cni` | Istio CNI | `platform` | 공통 플랫폼 |
+| `ztunnel` | Ambient mesh 데이터플레인 | `platform` | 공통 플랫폼 |
 
 `storage-system`에는 PVC를 사용하는 Prometheus, OpenSearch 같은 업무
 워크로드를 넣지 않는다. CSI Controller와 Node Agent처럼 스토리지 기능을
@@ -214,11 +225,13 @@ spec:
 - 모든 container와 initContainer는 CPU request, Memory request,
   Memory limit을 선언한다.
 - CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
-- Kyverno 강제 대상은 `apps`, `devops`, `monitoring`, `messaging`,
-  `logging`, `finops`, `secops` Namespace다.
+- Kyverno Resource Audit 대상은 `apps`, `devops`, `monitoring`, `logging`,
+  `secops`, `audio-ingress`, `harbor-system` Namespace다. 위반은 Grafana의
+  실제 사용량과 함께 검토하며 requests/limits를 채우기 위해 억지로 변경하지 않는다.
 - Kubernetes 기본 시스템 Namespace는 일반 업무 정책 대상에서 제외한다.
-- `storage-system`, `kyverno`, `falco`도 CPU·Memory 자원 기준과
-  비용 수집 대상에는 포함한다. 다만 Third-party Add-on이 지원하는 설정 범위
+- `storage-system`, `kyverno` 같은 플랫폼 Add-on도 CPU·Memory 메트릭과
+  비용 수집에는 포함하지만 위 Resource Audit 정책에는 포함하지 않는다.
+  Third-party Add-on이 지원하는 설정 범위
   안에서 적용하고, Pod 하드닝 예외는 Namespace 전체가 아니라 필요한
   ServiceAccount·이미지·권한 조합으로 제한한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
