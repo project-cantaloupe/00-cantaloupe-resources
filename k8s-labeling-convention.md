@@ -225,17 +225,34 @@ spec:
 - 모든 container와 initContainer는 CPU request, Memory request,
   Memory limit을 선언한다.
 - CPU limit은 전체에 강제하지 않고 필요한 워크로드가 개별 설정한다.
-- Kyverno Resource Audit 대상은 `apps`, `devops`, `monitoring`, `logging`,
-  `secops`, `audio-ingress`, `harbor-system` Namespace다. 위반은 Grafana의
-  실제 사용량과 함께 검토하며 requests/limits를 채우기 위해 억지로 변경하지 않는다.
+- Kyverno Resource Enforce 대상은 `apps`, `devops`, `monitoring`, `logging`,
+  `secops`, `audio-ingress`, `harbor-system` Namespace다. requests/limits 값은
+  Grafana의 실제 사용량과 함께 검토하며 근거 없이 과도하게 설정하지 않는다.
 - Kubernetes 기본 시스템 Namespace는 일반 업무 정책 대상에서 제외한다.
 - `storage-system`, `kyverno` 같은 플랫폼 Add-on도 CPU·Memory 메트릭과
-  비용 수집에는 포함하지만 위 Resource Audit 정책에는 포함하지 않는다.
+  비용 수집에는 포함하지만 위 Resource Enforce 정책에는 포함하지 않는다.
   Third-party Add-on이 지원하는 설정 범위
   안에서 적용하고, Pod 하드닝 예외는 Namespace 전체가 아니라 필요한
   ServiceAccount·이미지·권한 조합으로 제한한다.
 - Third-party chart도 지원되는 `values.yaml` 항목으로 같은 기준을 적용한다.
 - 불가피한 예외는 대상·사유·승인자·재검토일을 명시한다.
+
+### 리소스 정책 배포 절차
+
+- `require-resource-limits`는 클러스터에서 `Enforce`로 동작한다. 위 기준을
+  누락한 Pod와 이를 생성하는 Workload는 Kubernetes API admission에서
+  거부된다.
+- `02-k8s-manifests` PR의 `Render and validate resources` 검사를 반드시
+  확인한다. 실패한 PR에는 `finops-policy-violation` 라벨과 조치 안내
+  코멘트가 자동으로 등록된다.
+- 현재 GitHub 플랜에서는 실패한 검사가 Merge 버튼을 강제로 잠그지 못한다.
+  검사 실패 상태에서는 병합하지 않는 것을 팀 규칙으로 한다.
+- 위반이 실수로 병합되면 Git의 선언은 남지만 Argo CD 배포는 거부되어
+  `OutOfSync` 또는 `Degraded`가 될 수 있다. 생성된 리소스를 직접 수정하지
+  말고 Helm values 또는 Kustomize 원본에 리소스 값을 추가한 수정 PR을
+  병합해 복구한다.
+- 정책 예외나 Enforce 해제는 일반 장애 우회 수단이 아니다. 승인된 예외
+  절차와 재검토일이 없는 경우 사용하지 않는다.
 
 ### 스토리지 비용 귀속
 
