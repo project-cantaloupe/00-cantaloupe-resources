@@ -22,8 +22,8 @@ Cantaloupe 단일 Kubernetes 클러스터와 AWS/GCP/On-Prem 인프라 자원의
 | --- | --- | --- |
 | `org` | `cntlp` | 클라우드 자원 조직 |
 | `platform` | `aws`, `gcp`, `onp` | 실제 실행 위치 |
-| `role` | `control-plane`, `service`, `devops`, `monitoring`, `messaging`, `logging` | Node 역할 |
-| `area` | `apps`, `devops`, `monitoring`, `messaging`, `logging`, `finops`, `secops`, `platform` | 업무·플랫폼 영역 |
+| `role` | `control-plane`, `service`, `devops`, `monitoring`, `logging` | 현재 사용하는 Node 역할 |
+| `area` | `apps`, `devops`, `monitoring`, `logging`, `secops`, `autoscaling`, `platform` | 현재 사용하는 업무·플랫폼 영역 |
 | `component` | `api`, `transcode`, `metrics`, `registry`, `network`, `storage` 등 | Node가 아닌 자원의 기능 |
 
 ---
@@ -42,6 +42,10 @@ Cantaloupe 단일 Kubernetes 클러스터와 AWS/GCP/On-Prem 인프라 자원의
 시스템 Add-on Namespace는 기능 중심의 `<component>-system` 이름을 사용한다.
 공급자별 `gcp-*`, `aws-*` Namespace를 만들지 않고 실행 위치는 `platform`
 라벨로 구분한다. 현재 확정된 공통 스토리지 Namespace는 `storage-system`이다.
+
+`finops`는 독립 Namespace나 `area`가 아니라 `monitoring` 영역에서 수행하는
+관측 기능이며 필요하면 `category=finops`로 구분한다. 실제 메시징 플랫폼이 없는
+현재 상태에서는 `messaging` Namespace·`role`·`area`를 만들지 않는다.
 
 ---
 

@@ -40,6 +40,11 @@ k8s-labeling-convention.md
 ## 현재 운영 설계
 
 - [FinOps·OpenCost·Metrics·Right-sizing 현행 설계](docs/finops-observability.md)
+- [Kubernetes Namespace·라벨·Kyverno 관측 범위](k8s-labeling-convention.md)
+
+현재 Resource Audit 대상은 `apps`, `devops`, `monitoring`, `logging`, `secops`,
+`audio-ingress`, `harbor-system`이다. `finops`와 `messaging`은 독립 Namespace로
+만들지 않으며, FinOps 구성요소는 `monitoring`에서 실행한다.
 
 위 문서는 `02-k8s-manifests`의 현재 매니페스트와 운영 Grafana
 대시보드를 기준으로 합니다. 이미지로 남은 구조도는 설계 의도를
