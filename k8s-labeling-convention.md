@@ -93,8 +93,8 @@ Namespace에서 돌게 된다. 신원 서버는 클러스터에서 가치가 가
 노드가 클러스터에 Join되면 다음 네 라벨을 반드시 함께 부여한다.
 
 - `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
-- `role`: Node 역할 (`control-plane`, `service`, `devops`, `messaging`,
-  `monitoring`, `logging`)
+- `role`: Node 역할 (`control-plane`, `service`, `devops`, `monitoring`,
+  `logging`)
 - `topology.kubernetes.io/region`: 가격과 장애 도메인의 리전
 - `node.kubernetes.io/instance-type`: 공급자 VM 사양 또는 팀 표준 On-prem 사양명
 
@@ -132,8 +132,8 @@ Deployment, StatefulSet, Job, CronJob의 Pod template에는 다음 라벨을
 작성한다.
 
 - `app`: 서비스 이름. 소문자 kebab-case
-- `area`: 업무·플랫폼 영역 (`apps`, `devops`, `monitoring`, `messaging`,
-  `logging`, `finops`, `secops`, `platform`)
+- `area`: 업무·플랫폼 영역 (`apps`, `devops`, `monitoring`, `logging`,
+  `secops`, `autoscaling`, `platform`)
 - `platform`: 실제 실행 위치 (`aws`, `gcp`, `onp`)
 
 ```yaml
