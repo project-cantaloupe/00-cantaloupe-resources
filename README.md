@@ -27,6 +27,8 @@ blueprint/
 └── 프로젝트의 구조와 원칙을 설명하는 설계 문서
 docs/
 └── 현재 구현과 운영 대시보드를 기준으로 검증한 횡단 설계
+runbooks/
+└── 팀원이 재현할 수 있는 운영·검증 절차와 실행 스크립트
 resource-naming-convention.md
 └── 클라우드 및 K8s 자원 명명 규칙 (Resource Naming Convention)
 k8s-labeling-convention.md
@@ -40,6 +42,7 @@ k8s-labeling-convention.md
 ## 현재 운영 설계
 
 - [FinOps·OpenCost·Metrics·Right-sizing 현행 설계](docs/finops-observability.md)
+- [Audio FinOps Baseline·Right-sizing 데모 Runbook](runbooks/audio-finops/README.md)
 - [Kubernetes Namespace·라벨·Kyverno 관측 범위](k8s-labeling-convention.md)
 
 현재 Resource Audit 대상은 `apps`, `devops`, `monitoring`, `logging`, `secops`,
