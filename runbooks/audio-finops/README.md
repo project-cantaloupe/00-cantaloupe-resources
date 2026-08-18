@@ -28,7 +28,7 @@ Control Plane에는 GitHub Token을 두지 않는다. `run-rightsizing-demo.sh`�
 
 ## Control Plane 설치
 
-저장소를 받을 수 있는 관리 Workstation에서 다음 두 파일을 Control Plane의
+저장소를 받을 수 있는 관리 Workstation에서 다음 세 파일을 Control Plane의
 `/home/ubuntu`에 복사하고 실행 권한을 제한한다. `CP_HOST`에는 승인된 SSH 대상만
 넣는다.
 
@@ -42,10 +42,27 @@ ssh "$CP_HOST" \
 ssh "$CP_HOST" \
   'umask 077; cat > /home/ubuntu/run-rightsizing-demo.sh; chmod 700 /home/ubuntu/run-rightsizing-demo.sh; bash -n /home/ubuntu/run-rightsizing-demo.sh' \
   < runbooks/audio-finops/scripts/run-rightsizing-demo.sh
+
+ssh "$CP_HOST" \
+  'umask 077; cat > /home/ubuntu/watch-audio-autoscaling.sh; chmod 700 /home/ubuntu/watch-audio-autoscaling.sh; bash -n /home/ubuntu/watch-audio-autoscaling.sh' \
+  < runbooks/audio-finops/scripts/watch-audio-autoscaling.sh
 ```
 
-팀원이 같은 `ubuntu` 계정으로 접속하면 두 스크립트를 실행할 수 있다. 다른 Linux
+팀원이 같은 `ubuntu` 계정으로 접속하면 세 스크립트를 실행할 수 있다. 다른 Linux
 계정에는 `700` 권한 때문에 실행 권한이 없다.
+
+## Autoscaling 관측 화면
+
+부하 실행 전 별도 Control Plane Terminal에서 관측 스크립트를 시작한다.
+
+```bash
+/home/ubuntu/watch-audio-autoscaling.sh
+```
+
+화면은 1초마다 갱신하며 변경된 값을 강조한다. Baseline·Candidate Profile과
+Request, KEDA 상태·Replica, Burst Pod의 Node별 배치, Karpenter NodeClaim과 Burst
+Node를 한 화면에 표시한다. 여러 `kubectl get` 요청을 매초 실행하므로 발표와 짧은
+검증 중에만 사용하고 종료할 때 `Ctrl+C`를 누른다.
 
 ## 1. Baseline 실행
 
